@@ -1,0 +1,88 @@
+---
+title: "R Notebook"
+output:
+  html_document:
+    df_print: paged
+---
+```{r}
+library(jsonlite)
+library(stringr)
+library(glmnet)
+library(ggplot2)
+library(tidyverse)
+library(dplyr)
+library(nnet)
+```
+
+
+**Loading data sets**
+
+```{r, echo=FALSE}
+user_data <- load("yelp_user_small.Rda")
+review_data <- load("yelp_review_small.Rda")
+business_data <- stream_in(file("yelp_academic_dataset_business.json")) 
+```
+
+**Checking for duplicate entries**
+
+```{r}
+busdup <- sum(duplicated(business_data$business_id))
+revdup <- sum(duplicated(review_data_small$business_id))
+usdup <- sum(duplicated(review_data_small$user_id))
+```
+
+business_data: 0 business have been included twice
+review_data: \( \frac{1,261,472}{1,398,056} \) have been reviewed more than once. \( \frac{686,446}{1,398,056} \) users have left more than 1 review
+
+```{r}
+sum(is.na(user_data_small))
+sum(is.na(review_data_small))
+```
+*there are no missing values in user_data or review_data
+
+
+user_data_small$elite has only 18,178 entries for "elite" column out of 397,579, although not coded as "na" they can be viewed as missing values and can be dropped
+```{r}
+user_data_small$elite <- NULL
+```
+
+user_data_small$friends can be transformed to display number of friends although the attributes of a user's friends likely has predictive power it will be difficult to model
+
+coding all "none" values as 0, and adding a friend count
+```{r}
+user_data_small$friends <- ifelse(user_data_small$friends=="None",0,str_count(user_data_small$friends, ",") + 1)
+```
+
+Selecting relevant predictors from business_data dataset
+```{r}
+business_data_new <- subset(business_data, select = c("city", "stars", "review_count", "is_open", "business_id"))
+```
+
+merging review data set with user data set and business data set
+
+```{r}
+merged_df <- merge(merge(review_data_small, user_data_small, by = "user_id"), business_data_new, by = "business_id")
+```
+
+splitting into test and train
+
+```{r}
+set.seed(1)
+train_split <- sample(1:nrow(merged_df), 3*nrow(merged_df)/4)
+
+# dropping irrelevant variables
+train <- merged_df[train_split,] %>% select(-c("business_id", "user_id", "review_id", "text", "date", "name", "yelping_since"))
+test <- merged_df[(-train_split),] %>% select(-c("business_id", "user_id", "review_id", "text", "date", "name", "yelping_since"))
+
+trainX <- subset(train,select = -stars.x)
+trainY <- subset(train, select = stars.x)
+testX <- subset(test, select = -stars.x)
+testY <- subset(test, select = stars.x)
+```
+
+fitting multinomial logit model due to discreet outcome variables
+
+```{r}
+mlog_model <- multinom(stars.x ~., data=train)
+```
+

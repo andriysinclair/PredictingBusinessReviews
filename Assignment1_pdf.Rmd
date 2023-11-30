@@ -1,0 +1,38 @@
+---
+title: "Assignment_1"
+author: "Andriy Sinclair"
+date: "`r Sys.Date()`"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Predicting business reviews with machine learning
+
+## TDSP Methodology
+
+## 1. Business Understanding
+
+**Why do we want to predict business reviews?**
+
+This information would be useful for current and prospective business owners, who want to obtain the best possible business image in the eyes of their customers. A survey conducted in 2014, found that reviews were the second most important factor after price when considering a purchase. In fact, 95% of customers use reviews, 86% say they are essential when making a purchase and nearly one-third of those aged under 45 consult them for every single purchase . Clearly, positive reviews are crucial to businesses[^1]. Hence, our model needs interpretability since business owners seek to understand the key factors influencing positive reviews, allowing them to adjust their behaviour accordingly. Good out-of-sample predictability is also necessary, especially to prospective business owners who may use these results when considering their business plan.
+
+
+
+## 2. Data Acquisition and Understanding
+
+
+
+## Bibliography
+
+[^1]: https://www.powerreviews.com/blog/survey-confirms-the-value-of-reviews/
+
+
+
+
+
+
+
+
