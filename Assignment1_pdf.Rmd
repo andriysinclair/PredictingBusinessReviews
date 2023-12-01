@@ -9,6 +9,9 @@ output: pdf_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
+
+
+
 # Predicting business reviews with machine learning
 
 ## TDSP Methodology
@@ -25,13 +28,18 @@ This information would be useful for current and prospective business owners, wh
 
 
 
+
+
+
 ## Bibliography
 
 [^1]: https://www.powerreviews.com/blog/survey-confirms-the-value-of-reviews/
 
 
+## Appendix
 
 
+![]("zeros_plot.png")
 
 
 

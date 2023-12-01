@@ -4,7 +4,7 @@ output:
   html_document:
     df_print: paged
 ---
-```{r}
+```{r, echo=FALSE}
 library(jsonlite)
 library(stringr)
 library(glmnet)
@@ -62,27 +62,110 @@ merging review data set with user data set and business data set
 
 ```{r}
 merged_df <- merge(merge(review_data_small, user_data_small, by = "user_id"), business_data_new, by = "business_id")
+
+# making "city" into a factor variable
+merged_df$city <- factor(merged_df$city)
 ```
+
+counting the number of zero values in each column
+
+```{r}
+# Count the number of zeros in each column
+num_zeros_per_column <- round((colSums(merged_df == 0)/nrow(merged_df))*100,2)
+
+x_values = names(num_zeros_per_column)
+y_values = unname(num_zeros_per_column)
+
+col_sums <- data.frame(variable = x_values, proportion = y_values)
+col_sums <- col_sums[col_sums$proportion != 0,]
+
+
+# creating a plot
+
+zeros_plot <- ggplot(data = col_sums, mapping = aes(x=reorder(variable,-proportion), y = proportion)) + geom_bar(stat = "identity", fill = "skyblue") + geom_hline(yintercept = 30, linetype="dashed", color="red", size =1) + 
+  ggtitle("Percentage of 0 values per column") + 
+  labs(x="Variable name", y = "Percentage (%)") +
+  theme(axis.text.x=element_text(angle=45, hjust=1), 
+        plot.title    = element_text(family = "mono", hjust =0.5),
+        axis.title.x = element_text(family="mono"),
+        axis.title.y = element_text(family="mono")
+        ) 
+
+#ggsave("zeros_plot.png", plot = zeros_plot, width = 4, height = 4)
+
+
+zeros_plot
+```
+Removing irrelevant variables
+dropping "city£ because certain cities will not be common to both train and test data
+and will generate an error
+
+```{r}
+clean_df <- merged_df[ ,(colSums(merged_df == 0)/nrow(merged_df) *100) < 30] %>% select(-c("business_id","user_id", "review_id", "text", "date", "name", "yelping_since", "city")) %>%
+  rename(review_stars = stars.x, review_count_user = review_count.x, useful = useful.y, funny = funny.y, cool = cool.y , user_stars = average_stars, review_count_business = review_count.y, business_stars = stars.y)
+```
+
+
 
 splitting into test and train
 
 ```{r}
 set.seed(1)
-train_split <- sample(1:nrow(merged_df), 3*nrow(merged_df)/4)
+train_split <- sample(1:nrow(clean_df), 3*nrow(clean_df)/4)
 
 # dropping irrelevant variables
-train <- merged_df[train_split,] %>% select(-c("business_id", "user_id", "review_id", "text", "date", "name", "yelping_since"))
-test <- merged_df[(-train_split),] %>% select(-c("business_id", "user_id", "review_id", "text", "date", "name", "yelping_since"))
+train <- clean_df[train_split,] 
+test <- clean_df[(-train_split),] 
 
-trainX <- subset(train,select = -stars.x)
-trainY <- subset(train, select = stars.x)
-testX <- subset(test, select = -stars.x)
-testY <- subset(test, select = stars.x)
+trainX <- subset(train,select = -review_stars)
+trainY <- subset(train, select = review_stars)
+testX <- subset(test, select = -review_stars)
+testY <- subset(test, select = review_stars)
 ```
+
+Random Choice model for comparison
+
+```{r}
+randY <- sample(1:5, length(testY$review_stars), replace = TRUE)
+```
+
+random choice MSE
+
+```{r}
+rand_MSE<-mean((randY-testY$review_stars)^2)
+
+rand_MSE
+```
+
 
 fitting multinomial logit model due to discreet outcome variables
 
 ```{r}
-mlog_model <- multinom(stars.x ~., data=train)
+ml_model <- multinom(review_stars ~., data=train)
+```
+
+fitting a linear model
+
+```{r}
+linmod <- lm(review_stars ~., data=train)
+```
+
+LM predictions
+
+```{r}
+linmod_predict <- predict(linmod, newdata = testX)
+```
+
+LM MSE calculations
+
+```{r}
+test_MSE<-mean((linmod_predict-testY$review_stars)^2)
+
+test_MSE
+```
+multinom predictions
+
+```{r}
+mlmod_predict <- predict(ml_model, newdata = testX)
 ```
 
