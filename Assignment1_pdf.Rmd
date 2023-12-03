@@ -10,8 +10,6 @@ knitr::opts_chunk$set(echo = TRUE)
 ```
 
 
-
-
 # Predicting business reviews with machine learning
 
 ## TDSP Methodology
@@ -22,10 +20,33 @@ knitr::opts_chunk$set(echo = TRUE)
 
 This information would be useful for current and prospective business owners, who want to obtain the best possible business image in the eyes of their customers. A survey conducted in 2014, found that reviews were the second most important factor after price when considering a purchase. In fact, 95% of customers use reviews, 86% say they are essential when making a purchase and nearly one-third of those aged under 45 consult them for every single purchase . Clearly, positive reviews are crucial to businesses[^1]. Hence, our model needs interpretability since business owners seek to understand the key factors influencing positive reviews, allowing them to adjust their behaviour accordingly. Good out-of-sample predictability is also necessary, especially to prospective business owners who may use these results when considering their business plan.
 
+## 2. Data Acquisitions and Understanding
+
+Three data sets, which can be found here[^2], have been used in this project:
+
+* User data set
+  * contains yelp user specific information such as: the number of reviews they have written and the average rating of a review
+* Review data set
+  * contains review specific information such as: the star rating (this is the variable we will try to redict)
+* Business data set
+  * contains business specific information such as: the name, the state and the rating of the business
+  
+Each data set was cleaned individually before merging into one data set.
+
+**User data set**
+
+* "user_id" column, which provided a unique identifier for each user was checked for duplicate values
+* The data set was checked for missing values
+* The columns where checked for empty values: "elite"  had over 95% empty values was dropped
+* "yelping since", what do we want to do with this?
+* "friends" contained a list of the user's friends by identification number, this was converted to include the number of friends a user had so that the data was numeric and could be worked with
+* 
 
 
-## 2. Data Acquisition and Understanding
-
+  
+  
+  
+The review data set contained: "review_id", "user_id" and "business_id", which could be merged with "business_id" on the business dataset and "user_id" on the user data set. 
 
 
 
@@ -34,12 +55,10 @@ This information would be useful for current and prospective business owners, wh
 ## Bibliography
 
 [^1]: https://www.powerreviews.com/blog/survey-confirms-the-value-of-reviews/
+[^2]: https://www.yelp.com/dataset
 
 
-## Appendix
 
-
-![]("zeros_plot.png")
 
 
 
