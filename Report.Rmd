@@ -1,0 +1,354 @@
+---
+title: "Predicting business reviews with sentiment analysis, OLS and shrinkage methods."
+author: "Andriy Sinclair"
+date: "`r Sys.Date()`"
+output: pdf_document
+header-includes:
+  - \usepackage{float}
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r, include=FALSE, echo=FALSE}
+
+load(file = "Workspace.RData")
+library(knitr)
+library(jsonlite)
+library(stringr)
+library(glmnet)
+library(ggplot2)
+library(tidyverse)
+library(dplyr)
+library(nnet)
+library(glmnet)
+library(tidyr)
+library(randomForest)
+library(tidytext)
+library(modelsummary)
+library(knitr)
+
+
+
+```
+
+## Team Data Science Process (TDSP) Methodology
+
+The TDSP methodology [^1] was chosen to guide this project due to it's simplicity and applicability to modern data science problems. Most importantly, TDSP has intuitive and easy-to-follow documentation that was referred upon consistently for the duration of this project. Other methodologies like CRISP-DM, although the most widely used, are not tailored to modern Machine Learning projects but rather to Data Mining and so were not 100% applicable to this project. In addition, the documentation is long-winded and difficult to follow. The TDSP was modified slightly to suit an academic project and the "business understanding" section was omitted.
+
+## 1. Introduction
+
+The aim of this project is to enhance the following skills:
+
+* Proficiency in the R programming language.
+* Understanding and implementing data wrangling and data cleaning procedures, to avoid the problem of "garbage in garbage out".
+* Data understanding through visualisations
+* Implementing, explaining and comparing the performance of various statistical learning methods
+* Utilisation of sentiment analysis.
+
+Additionally, this project was able to deliver some insights into the nature of business reviews.
+
+## 2. Data Acquisitions and Understanding
+
+- Handling duplicates, especially in reviews.
+- Transforming variables for modeling.
+- Checking and addressing negative values.
+- Managing missing values by dropping rows.
+- Removing outliers in the "state" variable.
+- Converting categorical variables to factors.
+- Dropping "Compliment_cool" due to multicollinearity.
+- Renaming variables for clarity.
+- Merging review data based on "business_id" and "user_id."
+- Utilizing a 1:4 test:train split.
+
+**Data Visualisations**
+
+\begin{figure}[H]
+\centering
+\includegraphics{4plot.png}
+\caption{}
+\end{figure}
+
+From **Figure 1** we can see that 5 stars was the highest review category, with the frequency of very negative reviews at 1 star surpassing more neutral reviews of 2 or 3 stars. The majority of reviews were given on weekends, as expected. The summer months of June, July and August have the highest frequency of reviews followed by the winter months of January till March. We see a seemingly exponential increase in the number of reviews given from 2005 until 2018, then we see a drop, likely due to COVID-19.
+
+\begin{figure}[H]
+\centering
+\includegraphics{5plot.png}
+\caption{}
+\end{figure}
+
+**Figure 2** shows that the majority of users are ranked around 4 stars, with high proportions at the extremes of 1 star and 2 star.The majority of businesses are also ranked 4 stars.
+
+## Models
+
+**Overview**
+
+Two specifications were carried out for this project:
+
+**Specification 1**: Regular model including all variables outlined in *Appendix 1b*
+**Specification 2**: All Variables included in **specification 1** and a sentiment score.
+
+**Sentiment analysis**
+
+A lexicon-based sentiment analysis method was used for this project. This involves assigning a sentiment score to each word based on a pre-existing sentiment dictionary. The "AFINN" dictionary[^3] was used in this project due to words being ranked between -5 to +5 rather than taking three values: -1 (negative), 0 (neutral) and 1 (positive). Additionally, a sentiment score scaled by the occurence of non-zero words was used to account for varying review length. Although results are not included, this performed better than the regular sentiment score.
+
+The AFINN dictionary requires neither stemming, as all word forms are accounted for, nor the removal of stop words, as these would be ignored. Stop words were removed purely for the visualisation of **Figure 1**.
+
+
+
+\begin{figure}[h]
+\centering
+\includegraphics{words_plot.png}
+\caption{}
+\end{figure}
+
+Ssentiment analysis gives us further insight into the nature of reviews.**Figure 1** shows that the majority of reviews are positive, which aligns with **Table 1** and **Table 2**. Moreover, it appears that most businesses reviewed are food businesses.  
+
+```{r, echo=FALSE}
+
+MSEscores1 <- c(rand_MSE, lm_MSE1, ridgeMSE1, lassoMSE1)
+MSEscores1b <- c(rand_MSE, lm_MSE1b, ridge_MSE1b, lasso_MSE1b)
+MSEscores2 <- c(rand_MSE, lm_MSE2, ridgeMSE2, lassoMSE2)
+MSEscores2b <- c(rand_MSE, lm_MSE2b, ridge_MSE2b, lassoMSE2b)
+
+df <- data.frame(MSEscores1,MSEscores1b, MSEscores2, MSEscores2b)
+rownames(df) <- c("Random choice benchmark", "OLS", "Ridge", "Lasso")
+colnames(df) <- c("regular spec: test sample", "regular spec: training sample", "Sentiment analysis: test sample", "Sentiment analysis: training sample")
+
+kable(df, caption = "Mean Squared Error (MSE) scores", format = "markdown")
+
+```
+
+While reviews are discrete outcome variables ranging from 0 to 5, treating this prediction as a classification problem might not capture the nuanced relationships between values. For instance, predicting 4 when the actual value is 5 and predicting 1 when the actual value is 5 both result in the same classification score of 0. However, treating it as a regression problem with Mean Squared Error (MSE) as a performance measure allows the model to receive credit for distinguishing a good reviews from bad, even if the exact value was not predicted correctly.
+
+MSE is defined as:
+
+$$MSE = \frac{1}{n} \sum_{i=1}^{n} (y_i - \hat{y}_i)^2$$
+
+\( MSE\) takes into account the average squared deviation of the values predicted by the model from the actual values. 
+
+The \( MSE\) of a random choice model was taken for benchmarking. Every iteration generated a random number between 1 and 5 and compared that to the actual value. This resulted in a classification accuracy of \(0.2\), as expected, and an \(MSE\) of \(4.7\).
+
+All models performed better than random choice. However,from **Table 1** it is evident that including a sentiment analysis score resulted in improved performance across all prediction models. 
+
+The prediction models chosen are as follows:
+
+**OLS**
+
+OLS (Ordinary Least Squares) was a chosen as a widely-used and well-known prediction method to be used as a benchmark. Additionally, the interpretability offered by OLS surpasses more intricate methods
+
+```{r, echo=FALSE}
+variables_to_include <-  c(-2, -4,-13,-15,-34,-35,-40,-42,-45,-71,-72,-73,-74, -75)
+
+
+models <- list("Specification 1" = linmod1, "Specification 2" = linmod2)
+modelsummary(models, stars = TRUE,
+coef_omit  = variables_to_include,
+title = "OLS model significant coefficients")
+
+```
+
+From **Table 2** we can see that already highly rated businesses are likely to recieve further positive reviews and highly rated users give higher reviews. In addition, including the sentiment score results in a better fit to the data as shown by each regression's respective \( R^2 \), defined as:
+
+$$R^2 = 1 - \frac{\sum_{i=1}^{n}(y_i - \hat{y}_i)^2}{\sum_{i=1}^{n}(y_i - \bar{y})^2}$$
+
+\( R^2 \) represents the proportion of the variance in the dependent variable that is explained by the independent variables in a regression model, and as a rule of thumb including a sentiment score explains ~12% more variation in the data. 
+
+**Shrinkage methods**
+
+Shrinkage methods were chosen to explore model performance over and above OLS.
+
+The *ridge* estimator finds the \( \beta_0, \beta_1,..., \beta_k\) that minimises:
+
+
+\begin{align*}
+&= \sum_{i=1}^{n}(y_i - \hat{\beta}_0 - \sum_{k=1}^{p} \beta_jx_{ij})^2 + \lambda \sum_{j=1}^{k}\beta_{j}^2 \\
+&= RSS + \lambda \sum_{j=1}^{k}\beta_{j}^2
+\end{align*}
+
+
+The *lasso* estimator finds the \( \beta_0, \beta_1,..., \beta_k\) that minimises:
+
+\begin{align*}
+&= \sum_{i=1}^{n}(y_i - \hat{\beta}_0 - \sum_{k=1}^{p} \beta_jx_{ij})^2 + \lambda \sum_{j=1}^{k}\left | \beta_{j} \right | \\
+&= RSS + \lambda \sum_{j=1}^{k}\left | \beta_{j} \right |
+\end{align*}
+
+Both Ridge and Lasso introduce a shrinkage penalty. The shape of Lasso's shrinkage penalty: \( \lambda \sum_{j=1}^{k}\left | \beta_{j} \right | \) is a diamond meaning that the solution space where the solution space where the penalty term is minimized often intersects with the axes at the coordinate axes. Ridge's penalty term: \( \lambda \sum_{j=1}^{k}\beta_{j}^2 \) is a circular contour thus the solution never reaches 0. Both methods introduce bias into the coefficient estimates so that the method does not fit the outliers of the data excessively. The magnitude of \( \lambda \) controls the strength of the shrinkage. When \( \lambda \rightarrow \infty\) we have maximum bias and when \( \lambda \rightarrow 0\) we have maximum variance.10-fold cross-validation was used to select the optimum \( \lambda \) term. This attempts different \( \lambda \) on different subsets (or folds) of the data and selects the best performing.
+
+```{r, echo=FALSE}
+
+
+variables_to_include1 <-  c(-2, -4,-14,-16,-35,-36,-41,-43,-46,-72,-73,-74,-75, -76)
+
+
+models1 <- list("Specification 1" = ridge.mod1, "Specification 2" = ridge.mod2)
+modelsummary(models1,
+coef_omit  = variables_to_include1,
+title = "Ridge coefficients")
+
+
+
+```
+
+```{r, echo=FALSE}
+variables_to_include1 <-  c(-2, -4,-14,-16,-35,-36,-41,-43,-46,-72,-73,-74,-75, -76)
+
+
+models2 <- list("Specification 1" = lasso.mod1, "Specification 2" = lasso.mod2)
+modelsummary(models2,
+             #coef_omit = c(-2, -4,-14,-16,-35,-36,-41,-43,-46,-72,-73,-74,-75, -76)
+title = "Lasso coefficients")
+```
+
+The main conclusions from running lasso and ridge are summarized below:
+
+- Both lasso and ridge exhibit less coefficient shrinkage for Specification 2.
+- Lasso drops non-significant variables in Specification 1, maintaining more variables in Specification 2.
+
+This aligns with expectations, as Specification 2 increases predictability, leading to less overall reduction in coefficients for both shrinkage methods.
+
+Interestingly, shrinkage methods do not show improvements in predictability over OLS, as indicated in **Table 1**. The training and test MSEs are nearly identical across specifications and models, suggesting little overfitting. In such cases, shrinkage methods would not enhance performance.
+
+
+## Evaluation
+
+One strength of this approach to the task is transforming if required and utilising all variables in the user and review data sets and allowing for the models to self-correct and not utilise those with low predictive power. An imporvement would be to additionally utilise variables from the business data set. Specifically, a price range variable for all categories of business are likely to have predictive power over and above the current specification. Additionally, there is a "categories" variable in the business data set. However, it takes a wide variety of inputs and results in +1000 unique combinations and so would be difficult to model. More concise definitions of categories would be an excellent addition to this data set. 
+
+It is evident that adding sentiment analysis makes a large impact on predictiability. This could be further improved by using a custom lexicon dictionary that gives words scores from 1 to 5 depending on what review rank they appear most in. Additionally, including bi-grams and tri-grams could be experimented withto provide a more accurate sentiment score
+
+On a personal level, the biggest challenge faced with this project was the lack of computing resources. Thus I had to limit my data set to 40,000 observations and I was not able to run more complex models like Random Forest and Adaboost. If I was able to obtain more computational resources I would like to utilise the full user data along with the full review data set to obtain the greatest possible observations and compare how model performance of that data set compares to the one I was able to use. 
+
+To make up for using simpler models I decided to implement sentiment analysis to aid in predictability. It was interesting to see by how much model performance improved by implementing this.
+
+Additionally performing cross-validation on all models and averaging the \(MSE\) would provide a more robust measure. Nevertheless, the models were ran using different seeds and similar results were obtained
+
+## Bibliography
+
+[^1]: Microsoft. (2016). Team Data Science Process (TDSP). Retrieved from https://docs.microsoft.com/en-us/azure/machine-learning/team-data-science-process/
+
+[^2]: Yelp. (2022). Yelp Dataset. Retrieved from https://www.yelp.com/dataset
+
+[^3]: F. Å. Nielsen, "AFINN," 2011, Retrieved from (http://www2.compute.dtu.dk/pubdb/pubs/6010-full.html).
+
+Microsoft. (2016). Team Data Science Process (TDSP). Retrieved 12 5, 2023, from https://docs.microsoft.com/en-us/azure/machine-learning/team-data-science-process/
+
+Yelp. (2022). Yelp Dataset. Retrieved from https://www.yelp.com/dataset
+
+F. Å. Nielsen, "AFINN," 2011, Retrieved from (http://www2.compute.dtu.dk/pubdb/pubs/6010-full.html).
+
+
+## Appendix
+
+### Appendix 1: Datasets used ###
+
+**Business data set**
+
+- **business_id**: A string representing a 22-character unique business ID.
+- **name**: A string representing the business's name.
+- **address**: A string representing the full address of the business.
+- **city**: A string representing the city where the business is located.
+- **state**: A string representing the 2-character state code, if applicable.
+- **postal_code**: A string representing the postal code of the business.
+- **latitude**: A float representing the latitude of the business location.
+- **longitude**: A float representing the longitude of the business location.
+- **stars**: A float representing the star rating of the business, rounded to half-stars.
+- **review_count**: An integer indicating the number of reviews for the business.
+- **is_open**: An integer, 0 or 1, indicating whether the business is closed or open, respectively.
+- **attributes**: An object representing business attributes, where some attribute values might be objects.
+  - **RestaurantsTakeOut**: A boolean indicating whether the business offers takeout.
+  - **BusinessParking**: An object with boolean values indicating parking options (e.g., garage, street, valet).
+- **categories**: An array of strings representing business categories.
+- **hours**: An object representing the hours of operation for each day of the week, using a 24hr clock.
+
+**User data set**
+
+- **user_id**: A string representing a unique 22-character user ID, mapping to the user in user.json.
+- **name**: A string representing the user's first name.
+- **review_count**: An integer indicating the number of reviews the user has written.
+- **yelping_since**: A string indicating when the user joined Yelp, formatted as YYYY-MM-DD.
+- **friends**: An array of strings representing user IDs of the user's friends.
+- **useful**: An integer indicating the number of useful votes sent by the user.
+- **funny**: An integer indicating the number of funny votes sent by the user.
+- **cool**: An integer indicating the number of cool votes sent by the user.
+- **fans**: An integer indicating the number of fans the user has.
+- **elite**: An array of integers representing the years the user was elite.
+- **average_stars**: A float indicating the average rating of all reviews given by the user.
+- **compliment_hot**: An integer indicating the number of hot compliments received by the user.
+- **compliment_more**: An integer indicating the number of more compliments received by the user.
+- **compliment_profile**: An integer indicating the number of profile compliments received by the user.
+- **compliment_cute**: An integer indicating the number of cute compliments received by the user.
+- **compliment_list**: An integer indicating the number of list compliments received by the user.
+- **compliment_note**: An integer indicating the number of note compliments received by the user.
+- **compliment_plain**: An integer indicating the number of plain compliments received by the user.
+- **compliment_cool**: An integer indicating the number of cool compliments received by the user.
+- **compliment_funny**: An integer indicating the number of funny compliments received by the user.
+- **compliment_writer**: An integer indicating the number of writer compliments received by the user.
+- **compliment_photos**: An integer indicating the number of photo compliments received by the user.
+
+**Review dataset**
+
+- **review_id**: A string representing a unique 22-character review ID.
+- **user_id**: A string representing a unique 22-character user ID, mapping to the user in user.json.
+- **business_id**: A string representing a unique 22-character business ID, mapping to business in business.json.
+- **stars**: An integer indicating the star rating of the review.
+- **date**: A string representing the date of the review formatted as YYYY-MM-DD.
+- **text**: A string representing the text content of the review.
+- **useful**: An integer indicating the number of useful votes received for the review.
+- **funny**: An integer indicating the number of funny votes received for the review.
+- **cool**: An integer indicating the number of cool votes received for the review.
+
+### Appendix 1b: Variables used in predictive models ###
+
+*stars_review* was the outcome variable
+
+*Predictors:*
+
+**Business data set**
+
+- **name**
+- **state**
+- **stars_business**
+- **review_count**
+- **is_open**
+
+**User data set**
+
+- **user_id**
+- **review_count**
+- **review_month**
+- **review_year**
+- **review_day**
+- **friends**
+- **useful_user**
+- **funny_user**
+- **cool_user**
+- **fans**
+- **elite**
+- **average_stars**
+- **compliment_hot** 
+- **compliment_more** 
+- **compliment_profile** 
+- **compliment_cute**
+- **compliment_list**
+- **compliment_note**
+- **compliment_plain**
+- **compliment_funny**
+- **compliment_writer**
+- **compliment_photos**
+
+**Review data set**
+
+- **stars_review**
+- **date**
+- **text**
+- **useful_review**
+- **funny_review**
+- **cool_review**
+
+
+
+
+
+
