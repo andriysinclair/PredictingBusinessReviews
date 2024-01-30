@@ -7,15 +7,17 @@ A personal Data Science project incorporating OLS, sentiment analysis and shrink
 
 **files include:**
 
-"Spec1.R"
+*Spec1.R*
 Standard specification without sentiment analysis
 
-"Spec2_sentiment_analysis.R"
+*Spec2_sentiment_analysis.R*
 Specification incorporating sentiment analysis
 
-"Report.rmd"
+*Report.rmd*
 Markdown version of final project report.
 
-"Visualisations.R"
+*Visualisations.R*
 Visualisations of the data.
 
+*PredictingBusinessReviewsReport.pdf*
+PDF version of final report.
